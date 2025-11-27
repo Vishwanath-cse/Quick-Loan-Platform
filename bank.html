@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Quick Loan — Bank Details</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main class="card">
+<h1 class="bnk" >Quick Loan Platform</h1>
+	
+    <h1>Bank details (secure)</h1>
+    <p class="note">We collect only non-extremely-sensitive fields here. For full account verification we require an uploaded bank statement or provider-based verification.</p>
+
+    <form id="bankForm" autocomplete="off" novalidate>
+      <label>
+        
+        <input placeholder="Account holder name" type="text" name="account_name" required minlength="2" />
+      </label>
+
+      <label>
+      
+        <input placeholder="Bank name" type="text" name="bank_name" required />
+      </label>
+
+      <label>
+       
+        <input placeholder="Bank" type="text" name="branch" required />
+      </label>
+
+      <label>
+       
+        <input placeholder="IFSC code" type="text" name="ifsc" id="ifsc" placeholder="e.g. SBIN0000123" required maxlength="11" />
+      </label>
+
+      <label>
+  
+        <input placeholder="Account Number last 4 digits"type="text" name="acct_last4" id="acct_last4" inputmode="numeric" maxlength="4" required placeholder="1234" />
+      </label>
+
+      <label>
+        Security question
+        <select name="sec_q" required>
+          <option value="">-- choose a question --</option>
+          <option value="pet">What is your first pet's name?</option>
+          <option value="birthcity">Which city were you born in?</option>
+          <option value="school">Name of first school?</option>
+        </select>
+      </label>
+
+      <label>
+        
+        <input placeholder="Security answer" type="password" name="sec_ans" id="sec_ans" required minlength="3" />
+      </label>
+
+      <label>
+        Upload proof (bank statement / passbook image) <small>(recommended)</small>
+        <input type="file" name="proof" id="proof" accept="image/*,application/pdf" />
+      </label>
+
+      <div class="actions">
+        <button  type="submit" id="submitBtn">Submit Securely</button>
+      </div>
+
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+ 
+  </main>
+
+<script>
+// ====== Configuration: Put your server's RSA public key (SPKI PEM) here ======
+const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+YOUR_SERVER_RSA_PUBLIC_KEY_HERE
+-----END PUBLIC KEY-----`;
+// ==========================================================================
+
+// Helper: convert PEM -> ArrayBuffer
+function pemToArrayBuffer(pem) {
+  const b64 = pem.replace(/-----.*?-----/g, '').replace(/\s+/g, '');
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+// Import server public key for RSA-OAEP
+async function importServerPublicKey(pem) {
+  const spki = pemToArrayBuffer(pem);
+  return await window.crypto.subtle.importKey(
+    "spki",
+    spki,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["encrypt"]
+  );
+}
+
+// Encrypt payload JSON using RSA-OAEP (small payloads only).
+// For larger data, in production use hybrid encryption: generate AES key, encrypt data with AES-GCM, then encrypt AES key with RSA.
+async function encryptPayloadWithRSA(publicKey, payloadStr) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(payloadStr);
+  // Note RSA can only encrypt limited bytes; keep payload small. Use hybrid approach in production.
+  const encrypted = await window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, data);
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted))); // base64
+}
+
+// Basic IFSC validation: 4 letters + 0 + 6 alnum (India-style). Adjust/regional checks as needed.
+function validIFSC(ifsc) {
+  return /^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(ifsc.trim());
+}
+
+document.getElementById('bankForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('status');
+  status.textContent = '';
+
+  const form = e.target;
+  const formData = new FormData(form);
+  const acct_last4 = (formData.get('acct_last4') || '').trim();
+  const ifsc = (formData.get('ifsc') || '').trim();
+
+  // Client-side validation
+  if (!validIFSC(ifsc)) {
+    status.textContent = 'Please enter a valid IFSC code.';
+    return;
+  }
+  if (!/^\d{4}$/.test(acct_last4)) {
+    status.textContent = 'Enter last 4 digits of account (numbers only).';
+    return;
+  }
+
+  // Prepare a small payload (do NOT include full account number)
+  const payload = {
+    account_name: formData.get('account_name'),
+    bank_name: formData.get('bank_name'),
+    branch: formData.get('branch'),
+    ifsc: ifsc.toUpperCase(),
+    acct_last4: acct_last4,
+    sec_q: formData.get('sec_q'),
+    // Hash the security answer client-side (so raw answer not sent)
+    sec_ans_hash: await digestString(formData.get('sec_ans')),
+    // We do not include the file here; files should be uploaded to a secured file endpoint separately (signed URL)
+    proof_filename: formData.get('proof') && formData.get('proof').name ? formData.get('proof').name : null,
+    timestamp: new Date().toISOString()
+  };
+
+  // Import key and encrypt
+  try {
+    status.textContent = 'Encrypting and sending...';
+    const pubKey = await importServerPublicKey(PUBLIC_KEY_PEM);
+    const payloadStr = JSON.stringify(payload);
+    const encryptedBase64 = await encryptPayloadWithRSA(pubKey, payloadStr);
+
+    // Send encrypted payload to server
+    const res = await fetch('/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: encryptedBase64 })
+    });
+
+    if (res.ok) {
+      status.textContent = 'Submitted securely. We will verify and follow up.';
+      form.reset();
+    } else {
+      const txt = await res.text();
+      status.textContent = `Server error: ${res.status} ${txt}`;
+    }
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Encryption or network error. See console.';
+  }
+});
+
+// SHA-256 hashing for security answer (client-side) - returns hex
+async function digestString(str) {
+  const enc = new TextEncoder();
+  const data = enc.encode(str || '');
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+</script>
+</body>
+</html>

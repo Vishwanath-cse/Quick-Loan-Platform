@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | QuickCash Loans</title>
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <div class="container">
+    <div class="welcome">
+      <h1>Welcome to <span>QuickCash</span> Loan Platform</h1>
+      <p>Join now to manage your loans securely</p>
+    </div>
+
+    <div class="form-box1">
+      <h2>Register</h2>
+      <form id="registerForm" onsubmit="register(event)">
+        
+        <input placeholder="Full Name" id="regName" required>
+
+        
+        <input placeholder="Email" id="regEmail" required>
+
+        
+        <input placeholder="Password" id="regPassword" required>
+        
+        <button type="submit" class="btn">Register</button>
+      </form>
+      <p>Already have an account? <a href="login.html" class="color">Login here</a></p>
+      <p id="registerMsg"></p>
+      
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+</body>
+</html>

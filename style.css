@@ -1,0 +1,68 @@
+body {
+      background: linear-gradient(to right, #1a73e8, #43a047);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100;
+      flex-direction: column;
+      text-align: center;
+      padding: 20px;
+    }
+/* The card container */
+.card {
+  background:transparent;
+  padding: 25px 30px;
+  border-radius: 20px;
+  max-width: 700px;
+  width: 90%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  animation: fadeIn 0.7s ease;
+  height: 750px;
+  align-self:top;
+}
+
+.bnk {
+  text-align: center;
+  color: #0a3d62;
+}
+.sec{
+  width: 600px;
+  height: 900px;
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Inputs */
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  margin-bottom: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+/* Button */
+button {
+  background: #1e5799;
+  color: white;
+  padding: 12px;
+  width: 100%;
+  font-size: 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2980b9;
+}
+.note{
+  color:black;
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial,monospace;
